@@ -9,6 +9,7 @@ const config = {
   password: process.env.DB_PASSWORD || 'YourStrong@Passw0rd',
   server: process.env.DB_SERVER || 'localhost',
   database: process.env.DB_DATABASE || 'TonaireCommerce',
+  port: parseInt(process.env.DB_PORT || '54602', 10),
   options: {
     encrypt: process.env.DB_ENCRYPT === 'true',
     trustServerCertificate: process.env.DB_TRUST_SERVER_CERTIFICATE !== 'false'
@@ -20,20 +21,13 @@ const config = {
   }
 };
 
-// If a named instance is specified (e.g. MSSQLSERVER2022), set instanceName and omit static port
-if (process.env.DB_INSTANCE && process.env.DB_INSTANCE.trim().length > 0) {
-  config.options.instanceName = process.env.DB_INSTANCE.trim();
-} else if (process.env.DB_PORT) {
-  config.port = parseInt(process.env.DB_PORT, 10);
-}
-
 let pool = null;
 let isConnected = false;
 
-// In-Memory fallback store if SQL Server is not yet connected
+// In-Memory fallback store if SQL Server is not reachable
 let inMemoryProducts = [
   {
-    ProductId: 101,
+    ProductId: 1,
     SKU: 'TSHIRT-BLK-01',
     Name: 'Classic Black T-Shirt',
     Description: 'Premium cotton t-shirt',
@@ -45,7 +39,7 @@ let inMemoryProducts = [
     UpdatedAt: new Date()
   },
   {
-    ProductId: 102,
+    ProductId: 2,
     SKU: 'JEANS-BLU-02',
     Name: 'Slim Fit Blue Jeans',
     Description: 'Comfortable denim jeans',
@@ -57,7 +51,7 @@ let inMemoryProducts = [
     UpdatedAt: new Date()
   },
   {
-    ProductId: 103,
+    ProductId: 3,
     SKU: 'SHOES-RUN-03',
     Name: 'Pro Running Shoes',
     Description: 'Lightweight athletic sneakers',
@@ -73,20 +67,17 @@ let inMemoryAudit = [];
 
 async function connectDB() {
   try {
-    const target = config.options.instanceName
-      ? `${config.server}\\${config.options.instanceName}`
-      : `${config.server}:${config.port || 1433}`;
-    console.log(`Connecting to Microsoft SQL Server on [${target}]...`);
+    console.log(`Connecting to Microsoft SQL Server on [${config.server}:${config.port}]...`);
     pool = await sql.connect(config);
     isConnected = true;
-    console.log(`[SQL Server] Connected successfully to database: ${config.database}`);
+    console.log(`\n======================================================`);
+    console.log(`[SQL Server] Connected successfully to database: ${config.database}!`);
+    console.log(`   Connected to live Microsoft SQL Server instance!`);
+    console.log(`======================================================\n`);
     return pool;
   } catch (err) {
-    const target = config.options.instanceName
-      ? `${config.server}\\${config.options.instanceName}`
-      : `${config.server}:${config.port || 1433}`;
     console.warn(`\n======================================================`);
-    console.warn(`[SQL Server Notice] Could not connect to SQL Server at [${target}]`);
+    console.warn(`[SQL Server Notice] Could not connect to SQL Server at [${config.server}:${config.port}]`);
     console.warn(`Reason: ${err.message}`);
     console.warn(`Running in In-Memory Simulation Mode so API & Flutter apps work immediately!`);
     console.warn(`======================================================\n`);
