@@ -10,17 +10,26 @@ const masterConfig = {
   password: process.env.DB_PASSWORD || 'YourStrong@Passw0rd',
   server: process.env.DB_SERVER || 'localhost',
   database: 'master',
-  port: parseInt(process.env.DB_PORT || '1433', 10),
   options: {
     encrypt: process.env.DB_ENCRYPT === 'true',
     trustServerCertificate: process.env.DB_TRUST_SERVER_CERTIFICATE !== 'false'
   }
 };
 
+if (process.env.DB_INSTANCE && process.env.DB_INSTANCE.trim().length > 0) {
+  masterConfig.options.instanceName = process.env.DB_INSTANCE.trim();
+} else if (process.env.DB_PORT) {
+  masterConfig.port = parseInt(process.env.DB_PORT, 10);
+}
+
 const appDbName = process.env.DB_DATABASE || 'TonaireCommerce';
 
 async function seed() {
-  console.log(`\n=== SQL Server Seeder for ${appDbName} ===`);
+  const target = masterConfig.options.instanceName
+    ? `${masterConfig.server}\\${masterConfig.options.instanceName}`
+    : `${masterConfig.server}`;
+
+  console.log(`\n=== SQL Server Seeder for [${target}] ===`);
   let masterPool;
   try {
     console.log(`1. Connecting to SQL Server master database...`);
@@ -141,7 +150,7 @@ async function seed() {
     process.exit(0);
   } catch (err) {
     console.error(`\nERROR Seeding Database:`, err.message);
-    console.error(`Please verify your SQL Server is running and check .env settings.\n`);
+    console.error(`Please verify your SQL Server instance is reachable.\n`);
     process.exit(1);
   }
 }

@@ -2,8 +2,6 @@
  * Database connection & management module for SQL Server
  */
 const sql = require('mssql');
-const fs = require('fs');
-const path = require('path');
 require('dotenv').config();
 
 const config = {
@@ -11,7 +9,6 @@ const config = {
   password: process.env.DB_PASSWORD || 'YourStrong@Passw0rd',
   server: process.env.DB_SERVER || 'localhost',
   database: process.env.DB_DATABASE || 'TonaireCommerce',
-  port: parseInt(process.env.DB_PORT || '1433', 10),
   options: {
     encrypt: process.env.DB_ENCRYPT === 'true',
     trustServerCertificate: process.env.DB_TRUST_SERVER_CERTIFICATE !== 'false'
@@ -23,10 +20,17 @@ const config = {
   }
 };
 
+// If a named instance is specified (e.g. MSSQLSERVER2022), set instanceName and omit static port
+if (process.env.DB_INSTANCE && process.env.DB_INSTANCE.trim().length > 0) {
+  config.options.instanceName = process.env.DB_INSTANCE.trim();
+} else if (process.env.DB_PORT) {
+  config.port = parseInt(process.env.DB_PORT, 10);
+}
+
 let pool = null;
 let isConnected = false;
 
-// In-Memory fallback store if SQL Server is not yet running
+// In-Memory fallback store if SQL Server is not yet connected
 let inMemoryProducts = [
   {
     ProductId: 101,
@@ -69,16 +73,21 @@ let inMemoryAudit = [];
 
 async function connectDB() {
   try {
-    console.log(`Connecting to Microsoft SQL Server on ${config.server}:${config.port}...`);
+    const target = config.options.instanceName
+      ? `${config.server}\\${config.options.instanceName}`
+      : `${config.server}:${config.port || 1433}`;
+    console.log(`Connecting to Microsoft SQL Server on [${target}]...`);
     pool = await sql.connect(config);
     isConnected = true;
     console.log(`[SQL Server] Connected successfully to database: ${config.database}`);
     return pool;
   } catch (err) {
+    const target = config.options.instanceName
+      ? `${config.server}\\${config.options.instanceName}`
+      : `${config.server}:${config.port || 1433}`;
     console.warn(`\n======================================================`);
-    console.warn(`[SQL Server Notice] Could not connect to SQL Server at ${config.server}:${config.port}`);
+    console.warn(`[SQL Server Notice] Could not connect to SQL Server at [${target}]`);
     console.warn(`Reason: ${err.message}`);
-    console.warn(`Tip: If your SQL Server is running, check credentials in your .env file.`);
     console.warn(`Running in In-Memory Simulation Mode so API & Flutter apps work immediately!`);
     console.warn(`======================================================\n`);
     isConnected = false;
